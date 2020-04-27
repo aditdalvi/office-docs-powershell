@@ -15,7 +15,7 @@ monikerRange: "exchonline-ps || eop-ps"
 ## SYNOPSIS
 This cmdlet is available only in the cloud-based service.
 
-Use the Set-AntiPhishPolicy cmdlet to modify antiphishing policies in your cloud-based organization.
+Use the Set-AntiPhishPolicy cmdlet to modify antiphish policies in your cloud-based organization.
 
 > [!NOTE]
 > We recommend that you use the Exchange Online PowerShell V2 module to connect to Exchange Online PowerShell. For instructions, see [Use the Exchange Online PowerShell V2 module](https://docs.microsoft.com/powershell/exchange/exchange-online/exchange-online-powershell-v2/exchange-online-powershell-v2).
@@ -33,8 +33,6 @@ Set-AntiPhishPolicy -Identity <AntiPhishPolicyIdParameter>
  [-AuthenticationFailAction <SpoofAuthenticationFailAction>]
  [-Confirm]
  [-EnableAntispoofEnforcement <Boolean>]
- [-EnableAuthenticationSafetyTip <Boolean>]
- [-EnableAuthenticationSoftPassSafetyTip <Boolean>]
  [-Enabled <Boolean>]
  [-EnableMailboxIntelligence <Boolean>]
  [-EnableMailboxIntelligenceProtection <Boolean>]
@@ -52,13 +50,13 @@ Set-AntiPhishPolicy -Identity <AntiPhishPolicyIdParameter>
  [-MailboxIntelligenceProtectionActionRecipients <MultiValuedProperty>]
  [-MakeDefault]
  [-PhishThresholdLevel <Int32>]
+ [-PolicyTag <String>]
  [-TargetedDomainActionRecipients <MultiValuedProperty>]
  [-TargetedDomainProtectionAction <ImpersonationAction>]
  [-TargetedDomainsToProtect <MultiValuedProperty>]
  [-TargetedUserActionRecipients <MultiValuedProperty>]
  [-TargetedUserProtectionAction <ImpersonationAction>]
  [-TargetedUsersToProtect <MultiValuedProperty>]
- [-TreatSoftPassAsAuthenticated <Boolean>]
  [-WhatIf] [<CommonParameters>]
 ```
 
@@ -69,15 +67,28 @@ You need to be assigned permissions before you can run this cmdlet. Although thi
 
 ### Example 1
 ```powershell
-Set-AntiPhishPolicy -Identity "Contoso Antiphish" -TargetedDomainProtectionAction BccMessage -TargetedUserProtectionAction BccMessage -EnableTargetedUserProtection $true -TargetedDomainActionRecipients reviewer@contoso.com -TargetedUserActionRecipients reviewer@contoso.com
+Set-AntiPhishPolicy -Identity "Office365 AntiPhish Default" -AuthenticationFailAction Quarantine
 ```
 
-This example modifies the existing antiphishing policy named Contoso Antiphish by changing the notification action to Bcc, and specifies reviewer@contoso.com as the recipient of the messages.
+This example modifies the default anti-phish policy named Office365 AntiPhish Default to quarantine spoofed messages from senders who aren't allowed to spoof.
+
+### Example 2
+```powershell
+Set-AntiPhishPolicy -Identity "Office365 AntiPhish Default" -EnableOrganizationDomainsProtection $true -EnableTargetedDomainsProtection $true -TargetedDomainsToProtect fabrikam.com -TargetedDomainProtectionAction Quarantine -EnableTargetedUserProtection $true -TargetedUsersToProtect "Mai Fujito;mfujito@fabrikam.com" -TargetedUserProtectionAction Quarantine -EnableMailboxIntelligence $true -EnableMailboxIntelligenceProtection $true -MailboxIntelligenceProtectionAction Quarantine -EnableSimilarUsersSafetyTips $true -EnableSimilarDomainsSafetyTips $true -EnableUnusualCharactersSafetyTips $true
+```
+
+In Office 365 ATP, this example modifies the default anti-phish policy named Office365 AntiPhish Default with the following settings:
+
+- Enables organization domains protection for all accepted domains, and targeted domains protection for fabrikam.com.
+- Specifies Mai Fujito (mfujito@fabrikam.com) as a user to protect from impersonation.
+- Enables mailbox intelligence.
+- Enables mailbox intelligence protection, and specifies the quarantine action.
+- Enables impersonation safety tips (impersonated domains, impersonated users, and unusual characters).
 
 ## PARAMETERS
 
 ### -Identity
-The Identity parameter specifies the antiphishing policy that you want to modify. You can use any value that uniquely identifies the policy. For example:
+The Identity parameter specifies the antiphish policy that you want to modify. You can use any value that uniquely identifies the policy. For example:
 
 - Name
 
@@ -99,6 +110,8 @@ Accept wildcard characters: False
 ```
 
 ### -AdminDisplayName
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The AdminDisplayName parameter specifies a description for the policy. If the value contains spaces, enclose the value in quotation marks (").
 
 ```yaml
@@ -115,13 +128,13 @@ Accept wildcard characters: False
 ```
 
 ### -AuthenticationFailAction
-The AuthenticationFailAction parameter specifies the action to take when the message fails composite authentication. Valid values are:
+The AuthenticationFailAction parameter specifies the action to take when the message fails composite authentication (a mixture of traditional SPF, DKIM, and DMARC email authentication checks and proprietary backend intelligence). Valid values are:
 
 - Delete: Delete the message during filtering. Use caution with this value, because the deleted messages are not recoverable.
 
-- MoveToJmf: Move the message to the user's Junk Email folder. This is the default value.
+- MoveToJmf: This is the default value. Deliver the message to the recipient's mailbox, and move the message to the Junk Email folder. The message is only moved if the junk email rule is enabled on the mailbox (it's enabled by default). For more information, see [Configure junk email settings on Exchange Online mailboxes in Office 365](https://docs.microsoft.com/microsoft-365/security/office-365-security/configure-junk-email-settings-on-exo-mailboxes).
 
-- Quarantine: Move the message to the phishing quarantine.
+- Quarantine: Move the message to quarantine. Quarantined high confidence phishing messages are only available to admins. As of April 2020, quarantined phishing messages are available to the intended recipients.
 
 ```yaml
 Type: SpoofAuthenticationFailAction
@@ -159,7 +172,7 @@ Accept wildcard characters: False
 ### -EnableAntispoofEnforcement
 The EnableAntispoofEnforcement parameter specifies whether to enable or disable antispoofing protection for the policy. Valid values are:
 
-- $true: Antispoofing is enabled for the policy. This is the default value, and is recommended.
+- $true: Antispoofing is enabled for the policy. This is the default and recommended value. You specify the spoofed senders to allow or block using the Set-PhishFilterPolicy cmdlet.
 
 - $false: Antispoofing is disabled for the policy. We only recommend this value if you have a domain that's protected by another email filtering service.
 
@@ -176,43 +189,9 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -EnableAuthenticationSafetyTip
-The EnableAuthenticationSafetyTip parameter specifies whether to enable safety tips that are shown to recipients when a message fails composite authentication. Valid values are:
-
-- $true: Safety tips are enabled for messages that fail composite authentication. This is the default value, and we strongly recommend that you don't change it.
-
-- $false: Safety tips are disabled for messages that fail composite authentication.
-
-```yaml
-Type: Boolean
-Parameter Sets: (All)
-Aliases:
-Applicable: Exchange Online, Exchange Online Protection
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -EnableAuthenticationSoftPassSafetyTip
-This parameter is reserved for internal Microsoft use.
-
-```yaml
-Type: Boolean
-Parameter Sets: (All)
-Aliases:
-Applicable: Exchange Online, Exchange Online Protection
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -Enabled
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The Enabled parameter specifies whether the antiphish policy is enabled or disabled. Valid values are:
 
 $true: The policy is enabled.
@@ -233,11 +212,13 @@ Accept wildcard characters: False
 ```
 
 ### -EnableMailboxIntelligence
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The EnableMailboxIntelligence parameter specifies whether to enable or disable mailbox intelligence (the first contact graph) in domain and user impersonation protection. Valid values are:
 
-- $true: Use mailbox intelligence in domain and user impersonation protection. This is the default value.
+- $true: Use mailbox intelligence in domain and user impersonation protection.
 
-- $false: Don't use mailbox intelligence in domain and user impersonation protection.
+- $false: Don't use mailbox intelligence in domain and user impersonation protection. This is the default value.
 
 ```yaml
 Type: Boolean
@@ -253,6 +234,8 @@ Accept wildcard characters: False
 ```
 
 ### -EnableMailboxIntelligenceProtection
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The EnableMailboxIntelligenceProtection specifies whether to enable or disable intelligence based impersonation protection. Valid values are:
 
 - $true: Enable intelligence based impersonation protection.
@@ -273,11 +256,13 @@ Accept wildcard characters: False
 ```
 
 ### -EnableOrganizationDomainsProtection
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The EnableOrganizationDomainsProtection parameter specifies whether to enable domain impersonation protection for all registered domains in the Office 365 organization. Valid values are:
 
 - $true: Domain impersonation protection is enabled for all registered domains in the Office 365 organization.
 
-- $false: Domain impersonation protection isn't enabled for all registered domains in the Office 365 organization. This is the default value. You can enable domain impersonation protection for specific domains by using the EnableTargetedDomainsProtection and TargetedDomainsToProtect parameters.
+- $false: Domain impersonation protection isn't enabled for all registered domains in the Office 365 organization. This is the default value. You can enable protection for specific domains by using the EnableTargetedDomainsProtection and TargetedDomainsToProtect parameters.
 
 ```yaml
 Type: Boolean
@@ -293,7 +278,9 @@ Accept wildcard characters: False
 ```
 
 ### -EnableSimilarDomainsSafetyTips
-The EnableSimilarDomainsSafetyTips parameter specifies whether to enable safety tips that are shown to recipients in messages for domain impersonation detections. Valid values are:
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
+The EnableSimilarDomainsSafetyTips parameter specifies whether to enable the safety tip that's shown to recipients for domain impersonation detections. Valid values are:
 
 - $true: Safety tips for similar domains are enabled.
 
@@ -313,7 +300,9 @@ Accept wildcard characters: False
 ```
 
 ### -EnableSimilarUsersSafetyTips
-The EnableSimilarUsersSafetyTips parameter specifies whether to enable safety tips that are shown to recipients in messages for user impersonation detections. Valid values are:
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
+The EnableSimilarUsersSafetyTips parameter specifies whether to enable the safety tip that's shown to recipients for user impersonation detections. Valid values are:
 
 - $true: Safety tips for similar users are enabled.
 
@@ -333,6 +322,8 @@ Accept wildcard characters: False
 ```
 
 ### -EnableTargetedDomainsProtection
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The EnableTargetedDomainsProtection parameter specifies whether to enable domain impersonation protection for a list of specified domains. Valid values are:
 
 - $true: Domain impersonation protection is enabled for the domains specified by the TargetedDomainsToProtect parameter.
@@ -353,9 +344,11 @@ Accept wildcard characters: False
 ```
 
 ### -EnableTargetedUserProtection
-The EnableTargetedUserProtection parameter specifies whether to enable user impersonation protection for the users specified by the TargetedUsersToProtect parameter. Valid values are:
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
 
-- $true: User impersonation protection is enabled for the specified users.
+The EnableTargetedUserProtection parameter specifies whether to enable user impersonation protection for a list of specified users. Valid values are:
+
+- $true: User impersonation protection is enabled for the users specified by the TargetedUsersToProtect parameter.
 
 - $false: The TargetedUsersToProtect parameter isn't used. This is the default value.
 
@@ -373,11 +366,11 @@ Accept wildcard characters: False
 ```
 
 ### -EnableUnauthenticatedSender
-The EnableUnauthenticatedSender parameter specifies whether to apply a "?" symbol in Outlook's sender card if the sender fails authentication checks. Valid values are:
+The EnableUnauthenticatedSender parameter specifies whether to apply a question mark in Outlook's sender card if the sender fails composite authentication. Valid values are:
 
-- $true: Apply the "?" symbol.
+- $true: Apply a question mark to the sender card.
 
-- $false: Do not apply the "?" symbol.
+- $false: Do not apply a question mark to the sender card.
 
 ```yaml
 Type: Boolean
@@ -393,7 +386,9 @@ Accept wildcard characters: False
 ```
 
 ### -EnableUnusualCharactersSafetyTips
-The EnableUnusualCharactersSafetyTips parameter specifies whether to enable safety tips that are shown to recipients in messages for unusual characters in domain and user impersonation detections. Valid values are:
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
+The EnableUnusualCharactersSafetyTips parameter specifies whether to enable the safety tip that's shown to recipients for unusual characters in domain and user impersonation detections. Valid values are:
 
 - $true: Safety tips for unusual characters are enabled.
 
@@ -413,7 +408,9 @@ Accept wildcard characters: False
 ```
 
 ### -ExcludedDomains
-The ExcludedDomains parameter specifies trusted domains that are excluded from scanning by antiphishing protection. You can specify multiple domains separated by commas.
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
+The ExcludedDomains parameter specifies an exception for the policy that looks for the specified domains in the From address. You can specify multiple domains separated by commas.
 
 ```yaml
 Type: MultiValuedProperty
@@ -429,7 +426,9 @@ Accept wildcard characters: False
 ```
 
 ### -ExcludedSenders
-The ExcludedSenders parameter specifies a list of trusted sender email addresses that are excluded from scanning by antiphishing protection. You can specify multiple email addresses separated by commas.
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
+The ExcludedSenders parameter specifies an exception for the policy that looks for the specified message sender in the From address. You can specify multiple email addresses separated by commas.
 
 ```yaml
 Type: MultiValuedProperty
@@ -445,11 +444,13 @@ Accept wildcard characters: False
 ```
 
 ### -ImpersonationProtectionState
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The ImpersonationProtectionState parameter specifies the configuration of impersonation protection. Valid values are:
 
-- Automatic
+- Automatic: This is the default value in the default policy named Office365 AntiPhish Policy.
 
-- Manual (This is the default value)
+- Manual: This is the default value in custom policies that you create.
 
 - Off
 
@@ -467,17 +468,19 @@ Accept wildcard characters: False
 ```
 
 ### -MailboxIntelligenceProtectionAction
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The MailboxIntelligenceProtectionAction parameter specifies what to do with messages that fail mailbox intelligence protection. Valid values are:
 
-- NoAction (This is the default value)
+- NoAction: This is the default value.
 
 - BccMessage: Add the recipients specified by the MailboxIntelligenceProtectionActionRecipients parameter to the Bcc field of the message.
 
 - Delete: Delete the message during filtering. Use caution when selecting this value, because you can't recover the deleted message.
 
-- MoveToJmf: Move the message to the user's Junk Email folder.
+- MoveToJmf: Deliver the message to the recipient's mailbox, and move the message to the Junk Email folder. The message is only moved if the junk email rule is enabled on the mailbox (it's enabled by default). For more information, see [Configure junk email settings on Exchange Online mailboxes in Office 365](https://docs.microsoft.com/microsoft-365/security/office-365-security/configure-junk-email-settings-on-exo-mailboxes).
 
-- Quarantine: Move the message to the phishing quarantine.
+- Quarantine: Move the message to quarantine. Quarantined high confidence phishing messages are only available to admins. As of April 2020, quarantined phishing messages are available to the intended recipients.
 
 - Redirect: Redirect the message to the recipients specified by the MailboxIntelligenceProtectionActionRecipients parameter.
 
@@ -495,6 +498,8 @@ Accept wildcard characters: False
 ```
 
 ### -MailboxIntelligenceProtectionActionRecipients
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The MailboxIntelligenceProtectionActionRecipients parameter specifies the recipients to add to detected messages when the MailboxIntelligenceProtectionAction parameter is set to the value Redirect or BccMessage.
 
 A valid value for this parameter is an email address. You can specify multiple email addresses separated by commas.
@@ -513,7 +518,11 @@ Accept wildcard characters: False
 ```
 
 ### -MakeDefault
-{{Fill MakeDefault Description}}
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
+The MakeDefault switch makes the specified antiphish policy the default antiphish policy. You don't have to specify a value with this switch.
+
+The default antiphish policy is applied to everyone (no corresponding antiphish rule), can't be renamed, and has the unmodifiable priority value Lowest (the default policy is always applied last).
 
 ```yaml
 Type: SwitchParameter
@@ -529,9 +538,11 @@ Accept wildcard characters: False
 ```
 
 ### -PhishThresholdLevel
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The PhishThresholdLevel parameter specifies the tolerance level that's used by machine learning in the handling of phishing messages. Valid values are:
 
-- 1: Standard (this is the default value)
+- 1: Standard (This is the default value.)
 
 - 2: Aggressive
 
@@ -552,7 +563,25 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -PolicyTag
+This parameter is reserved for internal Microsoft use.
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+Applicable: Exchange Online, Exchange Online Protection
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -TargetedDomainActionRecipients
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The TargetedDomainActionRecipients parameter specifies the recipients to add to detected domain impersonation messages when the TargetedDomainProtectionAction parameter is set to the value Redirect or BccMessage.
 
 A valid value for this parameter is an email address. You can specify multiple email addresses separated by commas.
@@ -571,17 +600,19 @@ Accept wildcard characters: False
 ```
 
 ### -TargetedDomainProtectionAction
-The TargetedDomainProtectionAction parameter specifies the action to take on detected domain impersonation messages for the domains specified by the TargetedDomainsToProtect parameter. Valid values are:
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
 
-- NoAction (This is the default value)
+The TargetedDomainProtectionAction parameter specifies the action to take on detected domain impersonation messages. You specify the protected domains in the TargetedDomainsToProtect parameter. Valid values are:
+
+- NoAction: This is the default value.
 
 - BccMessage: Add the recipients specified by the TargetedDomainActionRecipients parameter to the Bcc field of the message.
 
 - Delete: Delete the message during filtering. Use caution when selecting this value, because you can't recover the deleted message.
 
-- MoveToJmf: Move the message to the user's Junk Email folder.
+- MoveToJmf: Deliver the message to the recipient's mailbox, and move the message to the Junk Email folder. The message is only moved if the junk email rule is enabled on the mailbox (it's enabled by default). For more information, see [Configure junk email settings on Exchange Online mailboxes in Office 365](https://docs.microsoft.com/microsoft-365/security/office-365-security/configure-junk-email-settings-on-exo-mailboxes).
 
-- Quarantine: Move the message to the phishing quarantine.
+- Quarantine: Move the message to quarantine. Quarantined high confidence phishing messages are only available to admins. As of April 2020, quarantined phishing messages are available to the intended recipients.
 
 - Redirect: Redirect the message to the recipients specified by the TargetedDomainActionRecipients parameter.
 
@@ -599,6 +630,8 @@ Accept wildcard characters: False
 ```
 
 ### -TargetedDomainsToProtect
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The TargetedDomainsToProtect parameter specifies the domains that are included in domain impersonation protection when the EnableTargetedDomainsProtection parameter is set to $true.
 
 You can specify multiple domains separated by commas.
@@ -617,7 +650,9 @@ Accept wildcard characters: False
 ```
 
 ### -TargetedUserActionRecipients
-The TargetedUserActionRecipients parameter specifies the replacement or additional recipients for detected messages when the TargetedUserProtectionAction parameter is set to the value Redirect or BccMessage.
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
+The TargetedUserActionRecipients parameter specifies the replacement or additional recipients for detected user impersonation messages when the TargetedUserProtectionAction parameter is set to the value Redirect or BccMessage.
 
 A valid value for this parameter is an email address. You can specify multiple email addresses separated by commas.
 
@@ -635,17 +670,19 @@ Accept wildcard characters: False
 ```
 
 ### -TargetedUserProtectionAction
-The TargetedUserProtectionAction parameter specifies the action to take on detected user impersonation messages for the users specified by the TargetedUsersToProtect parameter. Valid values are:
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
 
-- NoAction (This is the default value)
+The TargetedUserProtectionAction parameter specifies the action to take on detected user impersonation messages. You specify the protected users in the TargetedUsersToProtect parameter. Valid values are:
+
+- NoAction: This is the default value.
 
 - BccMessage: Add the recipients specified by the TargetedDomainActionRecipients parameter to the Bcc field of the message.
 
 - Delete: Delete the message during filtering. Use caution when selecting this value, because you can't recover the deleted message.
 
-- MoveToJmf: Move the message to the user's Junk Email folder.
+- MoveToJmf: Deliver the message to the recipient's mailbox, and move the message to the Junk Email folder. The message is only moved if the junk email rule is enabled on the mailbox (it's enabled by default). For more information, see [Configure junk email settings on Exchange Online mailboxes in Office 365](https://docs.microsoft.com/microsoft-365/security/office-365-security/configure-junk-email-settings-on-exo-mailboxes).
 
-- Quarantine: Move the message to the phishing quarantine.
+- Quarantine: Move the message to quarantine. Quarantined high confidence phishing messages are only available to admins. As of April 2020, quarantined phishing messages are available to the intended recipients.
 
 - Redirect: Redirect the message to the recipients specified by the TargetedDomainActionRecipients parameter.
 
@@ -663,40 +700,20 @@ Accept wildcard characters: False
 ```
 
 ### -TargetedUsersToProtect
+**Note**: This setting is only available in Office 365 Advanced Threat Protection.
+
 The TargetedUsersToProtect parameter specifies the users that are included in user impersonation protection when the EnableTargetedUserProtection parameter is set to $true.
 
-This parameter uses the syntax "DisplayName;EmailAddress".
+This parameter uses the syntax: "DisplayName;EmailAddress".
 
 - DisplayName specifies the display name of the user that could be a target of impersonation. This value can contain special characters.
 
 - EmailAddress specifies the internal or external email address that's associated with the display name.
 
-- You can specify multiple value sets by using the syntax: "DisplayName1;EmailAddress1","DisplayName2;EmailAddress2",..."DisplayNameN;EmailAddressN". The combination of DisplayName and EmailAddress needs to be unique for each value set.
+- You can specify multiple values by using the syntax: "DisplayName1;EmailAddress1","DisplayName2;EmailAddress2",..."DisplayNameN;EmailAddressN". The combination of DisplayName and EmailAddress needs to be unique for each value.
 
 ```yaml
 Type: MultiValuedProperty
-Parameter Sets: (All)
-Aliases:
-Applicable: Exchange Online, Exchange Online Protection
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -TreatSoftPassAsAuthenticated
-The TreatSoftPassAsAuthenticated parameter specifies whether or not to respect the composite authentication softpass result. Valid values are:
-
-- $true: This is the default value.
-
-- $false: Only use this value when you want to enable more restrictive antispoofing filtering, because this value might cause false positives.
-
-Note: This parameter corresponds to the Strict filtering value in the Microsoft 365 admin center.
-
-```yaml
-Type: Boolean
 Parameter Sets: (All)
 Aliases:
 Applicable: Exchange Online, Exchange Online Protection

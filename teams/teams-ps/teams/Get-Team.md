@@ -31,7 +31,8 @@ Get-Team [-User <String>] [-Archived <Boolean>] [-Visibility <String>] [-Display
 ## DESCRIPTION
 This cmdlet supports retrieving teams with particular properties/information, including all teams that a specific user belongs to, all teams that have been archived, all teams with a specific display name, or all teams in the organization.
 
-Note: depending on the number of teams and O365 Groups in your organization and which filters you are using, this cmdlet can take upwards of ten minutes to run.  Some of the input parameters are guaranteed unique (e.g. GroupId), and others serve as filters (e.g. -Archived).
+>[!NOTE]
+>Depending on the number of teams and O365 Groups in your organization and which filters you are using, this cmdlet can take upwards of ten minutes to run.  Some of the input parameters are guaranteed unique (e.g. GroupId), and others serve as filters (e.g. -Archived).
 
 ## EXAMPLES
 
@@ -53,6 +54,12 @@ Returns all teams that are private and have been archived.
 PS> Get-Team -MailNickName "BusinessDevelopment"
 ```
 Returns the team that matches the specified MailNickName
+
+### Example 4
+```
+PS> Get-Team -DisplayName "Sales and Marketing"
+```
+Returns the team that matches the specified DisplayName
 
 ## PARAMETERS
 
@@ -112,7 +119,7 @@ Accept wildcard characters: False
 ```
 
 ### -DisplayName
-Filters to return teams with a full match to the provided displayname.  As displayname is not unique, this acts as a filter rather than an exact match.
+Filters to return teams with a full match to the provided displayname.  As displayname is not unique, this acts as a filter rather than an exact match. Note that this filter value is case-sensitive.
 
 ```yaml
 Type: String
